@@ -1,0 +1,67 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+struct node {
+    node* child[26];
+    bool isEnd;
+
+    node() {
+        memset(child, NULL, sizeof(child));
+        isEnd = 0;
+    }
+};
+
+node* root = new node();
+
+void Add(string &s) {
+    node* u = root;
+    for (int i = 0; i < s.size(); ++i) {
+        int k = s[i] - 'a';
+        if (u->child[k] == NULL)
+            u->child[k] = new node();
+        u = u->child[k];
+    }
+    u->isEnd = 1;
+}
+
+bool Query(string &s) {
+    node* u = root;
+    for (int i = 0; i < s.size(); ++i) {
+        int k = s[i] - 'a';
+        if (u->child[k] == NULL) return 0;
+        u = u->child[k];
+    }
+    return u->isEnd;
+}
+
+int main() {
+    vector<string> words;
+    int n,m;
+    cin>>n>>m;
+    for(int i=0;i<n;i++){
+        string temp;
+        cin>>temp;
+        words.push_back(temp);
+    }
+
+    for (auto &word : words) {
+        Add(word);
+    }
+    vector<string> queries;
+    for(int i=0;i<m;i++){
+        string temp;
+        cin>>temp;
+        queries.push_back(temp);
+
+    }
+
+    for (auto &q : queries) {
+        if (Query(q)) {
+            cout << q <<" YES"<<endl;
+        } else {
+            cout << q <<" NO"<<endl;
+        }
+    }
+
+    return 0;
+}
