@@ -1,0 +1,47 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MAX_NODES = 500005; // Giới hạn số nút Trie (maxn * 50)
+int child[MAX_NODES][26], cnt = 0; // Mảng lưu các nút con và bộ đếm số nút đã tạo
+bool isEnd[MAX_NODES]; // Đánh dấu nút kết thúc một từ
+
+// Hàm thêm từ vào Trie
+void Add(string &s) {
+    int u = 0;
+    for (int i = 0; i < s.size(); ++i) {
+        int k = s[i] - 'a';
+        if (!child[u][k]) child[u][k] = ++cnt;
+        u = child[u][k];
+    }
+    isEnd[u] = 1;
+}
+
+// Hàm kiểm tra từ có trong Trie hay không
+bool Query(const string &s) {
+    int u = 0; // Bắt đầu từ nút gốc
+    for (char c : s) {
+        int k = c - 'a';
+        if (!child[u][k]) return false; // Nếu không tồn tại, trả về false
+        u = child[u][k]; // Di chuyển đến nút tiếp theo
+    }
+    return isEnd[u]; // Nếu là nút kết thúc từ, trả về true, ngược lại false
+}
+
+int main() {
+
+    int n, m;
+    cin >> n >> m; // Nhập số lượng từ cần thêm và số truy vấn
+
+    string s;
+    for (int i = 0; i < n; ++i) {
+        cin >> s;
+        Add(s); // Thêm từ vào Trie
+    }
+
+    for (int i = 0; i < m; ++i) {
+        cin >> s;
+        cout << (Query(s) ? "YES" : "NO") << '\n'; // Kiểm tra từ có tồn tại không
+    }
+
+    return 0;
+}
