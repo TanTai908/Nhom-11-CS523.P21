@@ -71,3 +71,7 @@ EXEC sp_configure 'show advanced options', 1;
 RECONFIGURE;
 EXEC sp_configure 'remote access', 1;
 RECONFIGURE;
+
+INSERT INTO Words (word, created_at) VALUES ('hello', GETDATE());
+INSERT INTO Words (word, created_at) VALUES ('car', GETDATE());
+SELECT * FROM Words;
