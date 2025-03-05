@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Từ Điển Trie Tree</title>
+</head>
+<body>
+    <h2>Web Từ Điển (Trie Tree) 🚀</h2>
+    
+    <input type="text" id="wordInput" placeholder="Nhập từ cần thêm">
+    <button onclick="addWord()">Thêm từ</button>
+    
+    <input type="text" id="searchInput" placeholder="Nhập từ cần tìm">
+    <button onclick="searchWord()">Tìm kiếm</button>
+    
+    <p id="result"></p>
+
+    <script>
+        async function addWord() {
+            let word = document.getElementById("wordInput").value;
+            let response = await fetch("/add_word", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ word })
+            });
+            let data = await response.json();
+            alert(data.message);
+        }
+
+        async function searchWord() {
+            let word = document.getElementById("searchInput").value;
+            let response = await fetch(`/search?word=${word}`);
+            let data = await response.json();
+            document.getElementById("result").innerText = data.exists 
+                ? `✅ Từ "${word}" có trong từ điển!` 
+                : `❌ Từ "${word}" không có trong từ điển!`;
+        }
+    </script>
+</body>
+</html>
+
