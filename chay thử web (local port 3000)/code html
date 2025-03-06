@@ -13,15 +13,32 @@
         input {
             padding: 8px;
             margin: 5px;
-            width: 200px;
+            width: 300px;
+            font-size: 16px;
         }
         button {
             padding: 8px 12px;
             cursor: pointer;
+            font-size: 16px;
         }
-        #suggestions {
-            margin-top: 10px;
-            color: blue;
+        #suggestionsList {
+            list-style-type: none;
+            padding: 0;
+            margin: 5px auto;
+            width: 320px;
+            border: 1px solid #ddd;
+            display: none; /* Ẩn mặc định */
+            position: absolute;
+            background: white;
+            z-index: 10;
+        }
+        #suggestionsList li {
+            padding: 10px;
+            cursor: pointer;
+            text-align: left;
+        }
+        #suggestionsList li:hover {
+            background-color: #f0f0f0;
         }
         .hidden {
             display: none;
@@ -32,37 +49,16 @@
 
     <h2>Web Từ Điển (Trie Tree) 🚀</h2>
 
-    <div>
-        <input type="text" id="wordInput" placeholder="Nhập từ cần thêm">
-        <button onclick="addWord()">Thêm từ</button>
-    </div>
-
-    <div>
-        <input type="text" id="searchInput" placeholder="Nhập từ cần tìm" oninput="getSuggestions()">
+    <div style="position: relative; display: inline-block;">
+        <input type="text" id="searchInput" placeholder="Nhập từ cần tìm..." oninput="getSuggestions()" autocomplete="off">
         <button onclick="searchWord()">Tìm kiếm</button>
+        <ul id="suggestionsList"></ul>
     </div>
-
-    <div id="suggestions" class="hidden"></div>
 
     <div id="result"></div>
 
     <script>
-        async function addWord() {
-            let word = document.getElementById("wordInput").value.trim();
-            if (!word) {
-                alert("Vui lòng nhập từ hợp lệ!");
-                return;
-            }
-
-            let response = await fetch("/add_word", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ word })
-            });
-            let data = await response.json();
-            alert(data.message);
-        }
-
+        // Hàm tìm kiếm từ trong database
         async function searchWord() {
             let word = document.getElementById("searchInput").value.trim();
             if (!word) {
@@ -87,27 +83,48 @@
             }
         }
 
+        // Hàm lấy danh sách gợi ý từ Trie Tree
         async function getSuggestions() {
-            let prefix = document.getElementById("searchInput").value.trim();
-            let suggestionsDiv = document.getElementById("suggestions");
+            const prefix = document.getElementById("searchInput").value.trim();
+            const suggestionsList = document.getElementById("suggestionsList");
 
-            if (prefix.length < 2) {
-                suggestionsDiv.classList.add("hidden");
+            if (prefix.length === 0) {
+                suggestionsList.style.display = "none";
                 return;
             }
 
-            let response = await fetch(`/autocomplete?prefix=${prefix}`);
-            let data = await response.json();
+            const response = await fetch(`/autocomplete?prefix=${prefix}`);
+            const data = await response.json();
 
-            if (data.suggestions.length > 0) {
-                suggestionsDiv.innerHTML = `<b>Gợi ý:</b> ${data.suggestions.join(", ")}`;
-                suggestionsDiv.classList.remove("hidden");
-            } else {
-                suggestionsDiv.classList.add("hidden");
+            if (data.suggestions.length === 0) {
+                suggestionsList.style.display = "none";
+                return;
             }
+
+            let listHTML = "";
+            data.suggestions.forEach(word => {
+                listHTML += `<li onclick="selectWord('${word}')">${word}</li>`;
+            });
+
+            suggestionsList.innerHTML = listHTML;
+            suggestionsList.style.display = "block";
         }
+
+        // Khi chọn một từ gợi ý
+        function selectWord(word) {
+            document.getElementById("searchInput").value = word;
+            document.getElementById("suggestionsList").style.display = "none"; // Ẩn danh sách gợi ý
+        }
+
+        // Ẩn danh sách nếu click ra ngoài
+        document.addEventListener("click", function(event) {
+            if (!event.target.matches("#searchInput") && !event.target.matches("#suggestionsList li")) {
+                document.getElementById("suggestionsList").style.display = "none";
+            }
+        });
     </script>
 
 </body>
 </html>
+
 
