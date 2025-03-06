@@ -4,21 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Từ Điển Trie Tree</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            width: 200px;
+        }
+        button {
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        #suggestions {
+            margin-top: 10px;
+            color: blue;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
+
     <h2>Web Từ Điển (Trie Tree) 🚀</h2>
-    
-    <input type="text" id="wordInput" placeholder="Nhập từ cần thêm">
-    <button onclick="addWord()">Thêm từ</button>
-    
-    <input type="text" id="searchInput" placeholder="Nhập từ cần tìm">
-    <button onclick="searchWord()">Tìm kiếm</button>
-    
-    <p id="result"></p>
+
+    <div>
+        <input type="text" id="wordInput" placeholder="Nhập từ cần thêm">
+        <button onclick="addWord()">Thêm từ</button>
+    </div>
+
+    <div>
+        <input type="text" id="searchInput" placeholder="Nhập từ cần tìm" oninput="getSuggestions()">
+        <button onclick="searchWord()">Tìm kiếm</button>
+    </div>
+
+    <div id="suggestions" class="hidden"></div>
+
+    <div id="result"></div>
 
     <script>
         async function addWord() {
-            let word = document.getElementById("wordInput").value;
+            let word = document.getElementById("wordInput").value.trim();
+            if (!word) {
+                alert("Vui lòng nhập từ hợp lệ!");
+                return;
+            }
+
             let response = await fetch("/add_word", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -29,14 +64,50 @@
         }
 
         async function searchWord() {
-            let word = document.getElementById("searchInput").value;
+            let word = document.getElementById("searchInput").value.trim();
+            if (!word) {
+                alert("Vui lòng nhập từ cần tìm!");
+                return;
+            }
+
             let response = await fetch(`/search?word=${word}`);
             let data = await response.json();
-            document.getElementById("result").innerText = data.exists 
-                ? `✅ Từ "${word}" có trong từ điển!` 
-                : `❌ Từ "${word}" không có trong từ điển!`;
+
+            let resultDiv = document.getElementById("result");
+            if (!data.exists) {
+                resultDiv.innerHTML = `<p style="color:red;">❌ ${data.message}</p>`;
+            } else {
+                resultDiv.innerHTML = `
+                    <h3>Kết quả tìm kiếm:</h3>
+                    <p><b>Từ:</b> ${data.data.word}</p>
+                    <p><b>Loại từ:</b> ${data.data.types.join(", ")}</p>
+                    <p><b>Định nghĩa:</b> ${data.data.meanings.join("; ")}</p>
+                    <p><b>Ví dụ:</b> ${data.data.examples.join("; ")}</p>
+                `;
+            }
+        }
+
+        async function getSuggestions() {
+            let prefix = document.getElementById("searchInput").value.trim();
+            let suggestionsDiv = document.getElementById("suggestions");
+
+            if (prefix.length < 2) {
+                suggestionsDiv.classList.add("hidden");
+                return;
+            }
+
+            let response = await fetch(`/autocomplete?prefix=${prefix}`);
+            let data = await response.json();
+
+            if (data.suggestions.length > 0) {
+                suggestionsDiv.innerHTML = `<b>Gợi ý:</b> ${data.suggestions.join(", ")}`;
+                suggestionsDiv.classList.remove("hidden");
+            } else {
+                suggestionsDiv.classList.add("hidden");
+            }
         }
     </script>
+
 </body>
 </html>
 
