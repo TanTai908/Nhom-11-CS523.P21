@@ -1,44 +1,43 @@
 // Import các thư viện cần thiết
-const express = require("express"); // Framework để tạo server Node.js
-const path = require("path"); // Module hỗ trợ thao tác với đường dẫn file
-const bodyParser = require("body-parser"); // Middleware để xử lý dữ liệu từ request body
-const cors = require("cors"); // Middleware để cho phép truy cập từ domain khác
-const sql = require("mssql"); // Thư viện kết nối với SQL Server
-require("dotenv").config(); // Hỗ trợ đọc biến môi trường từ file .env
+const express = require("express");
+const path = require("path");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const sql = require("mssql");
+require("dotenv").config();
 
 // Cấu hình kết nối SQL Server
 const config = {
-    user: "sa",         // Tên user trong SQL Server
-    password: "MatKhauMoiCuaBan",  // Mật khẩu của SQL Server
-    server: "LAPTOP-9K0RRUKB", // Tên máy chủ SQL Server
-    database: "DictionaryDB", // Tên database chứa dữ liệu từ điển
+    user: "sa",
+    password: "MatKhauMoi!",
+    server: "LAPTOP-9K0RRUKB",
+    database: "DictionaryDB",
     options: {
-        encrypt: false,  // Tắt mã hóa kết nối (cần thiết nếu không sử dụng SSL)
-        trustServerCertificate: true, // Cho phép tin tưởng chứng chỉ máy chủ
+        encrypt: false,
+        trustServerCertificate: true,
     },
 };
 
 // Khởi tạo ứng dụng Express
 const app = express();
-app.use(cors()); // Cho phép truy cập API từ domain khác
-app.use(bodyParser.json()); // Hỗ trợ xử lý dữ liệu JSON từ client
-app.use(express.static(__dirname)); // Cho phép phục vụ file tĩnh (HTML, CSS, JS)
+app.use(cors());
+app.use(bodyParser.json());
+app.use(express.static(__dirname));
 
-// Định nghĩa cấu trúc Trie Node
+// Định nghĩa Trie Node
 class TrieNode {
     constructor() {
-        this.children = {}; // Danh sách con của node hiện tại
-        this.isEnd = false; // Đánh dấu nếu đây là điểm cuối của một từ
+        this.children = {};
+        this.isEnd = false;
     }
 }
 
-// Định nghĩa cấu trúc Trie Tree
+// Định nghĩa Trie Tree
 class Trie {
     constructor() {
-        this.root = new TrieNode(); // Gốc của Trie Tree
+        this.root = new TrieNode();
     }
 
-    // Hàm thêm từ vào Trie
     insert(word) {
         let node = this.root;
         for (let char of word) {
@@ -47,10 +46,9 @@ class Trie {
             }
             node = node.children[char];
         }
-        node.isEnd = true; // Đánh dấu kết thúc một từ
+        node.isEnd = true;
     }
 
-    // Hàm kiểm tra từ có tồn tại không
     search(word) {
         let node = this.root;
         for (let char of word) {
@@ -60,20 +58,18 @@ class Trie {
         return node.isEnd;
     }
 
-    // Hàm gợi ý từ dựa trên tiền tố (autocomplete)
     autocomplete(prefix) {
         let node = this.root;
         for (let char of prefix) {
-            if (!node.children[char]) return []; // Nếu tiền tố không tồn tại, trả về mảng rỗng
+            if (!node.children[char]) return [];
             node = node.children[char];
         }
 
         let results = [];
-        this._dfs(node, prefix, results); // Tìm tất cả từ có tiền tố này
+        this._dfs(node, prefix, results);
         return results;
     }
 
-    // Duyệt cây Trie để tìm các từ có tiền tố cho trước
     _dfs(node, word, results) {
         if (node.isEnd) results.push(word);
         for (let char in node.children) {
@@ -82,7 +78,7 @@ class Trie {
     }
 }
 
-// Tạo một thể hiện Trie
+// Tạo Trie Tree
 const trie = new Trie();
 
 // Hàm kết nối SQL Server
@@ -91,22 +87,20 @@ async function connectDB() {
         await sql.connect(config);
         console.log("✅ Kết nối SQL Server thành công!");
 
-        // Lấy danh sách từ trong database và thêm vào Trie Tree
+        // Lấy danh sách từ trong database và thêm vào Trie
         const result = await sql.query`SELECT word FROM Words`;
         result.recordset.forEach(row => trie.insert(row.word));
 
         console.log(`✅ Đã nạp ${result.recordset.length} từ vào Trie Tree!`);
-
-        startServer(); // Sau khi kết nối thành công, khởi động server
+        startServer();
     } catch (err) {
         console.error("❌ Lỗi kết nối SQL Server:", err);
-        process.exit(1); // Thoát chương trình nếu không kết nối được
+        process.exit(1);
     }
 }
 
 // Hàm khởi động server
 function startServer() {
-    // API phục vụ file HTML trang chủ
     app.get("/", (req, res) => {
         res.sendFile(path.join(__dirname, "index.html"));
     });
@@ -117,41 +111,59 @@ function startServer() {
         if (!word) return res.status(400).json({ error: "❌ Từ không hợp lệ!" });
 
         try {
-            // Kiểm tra từ có trong database chưa
-            const result = await sql.query`SELECT word FROM Words WHERE word = ${word}`;
-            if (result.recordset.length > 0) {
-                return res.json({ message: `⚠️ Từ '${word}' đã tồn tại!` });
+            const added = await addWordToDB(word);
+            if (!added) {
+                return res.json({ message: `⚠️ Từ '${word}' đã tồn tại trong database!` });
             }
 
-            // Thêm từ vào database
-            await sql.query`INSERT INTO Words (word) VALUES (${word})`;
-
-            // Thêm từ vào Trie
             trie.insert(word);
-
             res.json({ message: `✅ Đã thêm từ: ${word}` });
         } catch (err) {
             res.status(500).json({ error: "❌ Lỗi khi thêm từ", details: err.message });
         }
     });
 
-    // API kiểm tra từ có tồn tại trong Trie không
-    app.get("/search", (req, res) => {
-        const word = req.query.word;
-        if (!word) return res.status(400).json({ error: "❌ Chưa nhập từ cần tìm!" });
+    // Hàm thêm từ vào database
+    async function addWordToDB(word) {
+        try {
+            const result = await sql.query`SELECT word FROM Words WHERE word = ${word}`;
+            if (result.recordset.length > 0) return false;
 
-        const exists = trie.search(word);
-        res.json({ exists });
-    });
+            await sql.query`INSERT INTO Words (word) VALUES (${word})`;
+            return true;
+        } catch (err) {
+            console.error("❌ Lỗi khi lưu từ vào SQL:", err);
+            throw err;
+        }
+    }
 
-    // API kiểm tra từ có tồn tại trong database không
-    app.get("/search_db", async (req, res) => {
+    // API tìm kiếm từ (trả về thông tin đầy đủ từ database)
+    app.get("/search", async (req, res) => {
         const word = req.query.word;
         if (!word) return res.status(400).json({ error: "❌ Chưa nhập từ cần tìm!" });
 
         try {
-            const result = await sql.query`SELECT * FROM Words WHERE word = ${word}`;
-            res.json({ exists: result.recordset.length > 0 });
+            const result = await sql.query`
+                SELECT 
+                    W.word, WT.type, M.definition, E.example
+                FROM Words W
+                JOIN WordTypes WT ON W.word_id = WT.word_id
+                JOIN Meanings M ON W.word_id = M.word_id
+                LEFT JOIN Examples E ON W.word_id = E.word_id
+                WHERE W.word = ${word}`;
+
+            if (result.recordset.length === 0) {
+                return res.json({ exists: false, message: "❌ Từ không có trong từ điển!" });
+            }
+
+            const response = {
+                word: word,
+                types: [...new Set(result.recordset.map(row => row.type))],
+                meanings: [...new Set(result.recordset.map(row => row.definition))],
+                examples: [...new Set(result.recordset.map(row => row.example))]
+            };
+
+            res.json({ exists: true, data: response });
         } catch (err) {
             res.status(500).json({ error: "❌ Lỗi khi tìm từ", details: err.message });
         }
@@ -173,7 +185,7 @@ function startServer() {
     });
 }
 
-// Gọi hàm kết nối database để bắt đầu quá trình khởi động server
+// Gọi hàm kết nối database
 connectDB();
 
 
