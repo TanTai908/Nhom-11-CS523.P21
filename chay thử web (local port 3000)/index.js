@@ -40,7 +40,7 @@ class Trie {
 
     insert(word) {
         let node = this.root;
-        for (let char of word) {
+        for (let char of word.toLowerCase()) {
             if (!node.children[char]) {
                 node.children[char] = new TrieNode();
             }
@@ -51,7 +51,7 @@ class Trie {
 
     search(word) {
         let node = this.root;
-        for (let char of word) {
+        for (let char of word.toLowerCase()) {
             if (!node.children[char]) return false;
             node = node.children[char];
         }
@@ -60,13 +60,13 @@ class Trie {
 
     autocomplete(prefix) {
         let node = this.root;
-        for (let char of prefix) {
+        for (let char of prefix.toLowerCase()) {
             if (!node.children[char]) return [];
             node = node.children[char];
         }
 
         let results = [];
-        this._dfs(node, prefix, results);
+        this._dfs(node, prefix.toLowerCase(), results);
         return results;
     }
 
@@ -81,17 +81,24 @@ class Trie {
 // Tạo Trie Tree
 const trie = new Trie();
 
+// Hàm nạp từ vào Trie từ database
+async function loadTrie() {
+    try {
+        const result = await sql.query`SELECT word FROM Words`;
+        trie.root = new TrieNode(); // Reset Trie trước khi nạp lại dữ liệu
+        result.recordset.forEach(row => trie.insert(row.word));
+        console.log(`✅ Đã nạp ${result.recordset.length} từ vào Trie Tree!`);
+    } catch (err) {
+        console.error("❌ Lỗi khi nạp từ vào Trie:", err);
+    }
+}
+
 // Hàm kết nối SQL Server
 async function connectDB() {
     try {
         await sql.connect(config);
         console.log("✅ Kết nối SQL Server thành công!");
-
-        // Lấy danh sách từ trong database và thêm vào Trie
-        const result = await sql.query`SELECT word FROM Words`;
-        result.recordset.forEach(row => trie.insert(row.word));
-
-        console.log(`✅ Đã nạp ${result.recordset.length} từ vào Trie Tree!`);
+        await loadTrie();
         startServer();
     } catch (err) {
         console.error("❌ Lỗi kết nối SQL Server:", err);
@@ -105,77 +112,84 @@ function startServer() {
         res.sendFile(path.join(__dirname, "index.html"));
     });
 
-    // API thêm từ vào Trie và database
-    app.post("/add_word", async (req, res) => {
-        const { word } = req.body;
-        if (!word) return res.status(400).json({ error: "❌ Từ không hợp lệ!" });
-
+    // API kiểm tra kết nối database
+    app.get("/check", async (req, res) => {
         try {
-            const added = await addWordToDB(word);
-            if (!added) {
-                return res.json({ message: `⚠️ Từ '${word}' đã tồn tại trong database!` });
-            }
-
-            trie.insert(word);
-            res.json({ message: `✅ Đã thêm từ: ${word}` });
+            await sql.connect(config);
+            res.json({ status: "✅ Database kết nối thành công!" });
         } catch (err) {
-            res.status(500).json({ error: "❌ Lỗi khi thêm từ", details: err.message });
+            res.status(500).json({ status: "❌ Không kết nối được database", error: err.message });
         }
     });
 
-    // Hàm thêm từ vào database
-    async function addWordToDB(word) {
-        try {
-            const result = await sql.query`SELECT word FROM Words WHERE word = ${word}`;
-            if (result.recordset.length > 0) return false;
-
-            await sql.query`INSERT INTO Words (word) VALUES (${word})`;
-            return true;
-        } catch (err) {
-            console.error("❌ Lỗi khi lưu từ vào SQL:", err);
-            throw err;
-        }
-    }
-
     // API tìm kiếm từ (trả về thông tin đầy đủ từ database)
     app.get("/search", async (req, res) => {
-        const word = req.query.word;
+        const word = req.query.word?.trim().toLowerCase();
         if (!word) return res.status(400).json({ error: "❌ Chưa nhập từ cần tìm!" });
 
         try {
             const result = await sql.query`
-                SELECT 
-                    W.word, WT.type, M.definition, E.example
-                FROM Words W
-                JOIN WordTypes WT ON W.word_id = WT.word_id
-                JOIN Meanings M ON W.word_id = M.word_id
-                LEFT JOIN Examples E ON W.word_id = E.word_id
-                WHERE W.word = ${word}`;
+    SELECT 
+        W.word, 
+        COALESCE((
+            SELECT STRING_AGG(P.phonetic, ', ') 
+            FROM Phonetic P WHERE P.word_id = W.word_id
+        ), 'Không có') AS phonetic,  
+        COALESCE((
+            SELECT STRING_AGG(WT.word_type, ', ') 
+            FROM WordTypes WT WHERE WT.word_id = W.word_id
+        ), 'Không có') AS types,
+        COALESCE((
+            SELECT STRING_AGG(M.definition, '; ') 
+            FROM Meanings M WHERE M.word_id = W.word_id
+        ), 'Không có') AS meanings,
+        COALESCE((
+            SELECT STRING_AGG(E.example, ' | ') 
+            FROM Examples E WHERE E.word_id = W.word_id
+        ), 'Không có') AS examples
+    FROM Words W
+    WHERE W.word = ${word}`;
+
 
             if (result.recordset.length === 0) {
                 return res.json({ exists: false, message: "❌ Từ không có trong từ điển!" });
             }
 
+            const row = result.recordset[0];
+
             const response = {
-                word: word,
-                types: [...new Set(result.recordset.map(row => row.type))],
-                meanings: [...new Set(result.recordset.map(row => row.definition))],
-                examples: [...new Set(result.recordset.map(row => row.example))]
+                word: row.word,
+                phonetic: row.phonetic !== 'Không có' ? row.phonetic.split(', ') : [],
+                types: row.types !== 'Không có' ? row.types.split(', ') : [],
+                meanings: row.meanings !== 'Không có' ? row.meanings.split('; ') : [],
+                examples: row.examples !== 'Không có' ? row.examples.split(' | ') : []
             };
 
             res.json({ exists: true, data: response });
         } catch (err) {
+            console.error("❌ Lỗi khi tìm từ:", err);
             res.status(500).json({ error: "❌ Lỗi khi tìm từ", details: err.message });
         }
     });
 
     // API gợi ý từ dựa trên tiền tố
     app.get("/autocomplete", (req, res) => {
-        const prefix = req.query.prefix;
+        const prefix = req.query.prefix?.trim().toLowerCase();
         if (!prefix) return res.status(400).json({ error: "❌ Chưa nhập tiền tố!" });
 
         const suggestions = trie.autocomplete(prefix);
         res.json({ suggestions });
+    });
+
+    // API cập nhật Trie khi có thay đổi từ database
+    app.post("/refreshTrie", async (req, res) => {
+        try {
+            await loadTrie();
+            res.json({ status: "✅ Trie Tree đã được cập nhật!" });
+        } catch (err) {
+            console.error("❌ Lỗi khi cập nhật Trie:", err);
+            res.status(500).json({ error: "❌ Lỗi khi cập nhật Trie", details: err.message });
+        }
     });
 
     // Lắng nghe trên cổng 3000
