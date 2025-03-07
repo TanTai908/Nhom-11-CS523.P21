@@ -7,7 +7,6 @@ BEGIN
 END
 GO
 
-
 -- Tạo Database DictionaryDB
 CREATE DATABASE DictionaryDB;
 GO
@@ -20,42 +19,47 @@ GO
 CREATE TABLE Words (
     word_id INT IDENTITY(1,1) PRIMARY KEY,
     word NVARCHAR(100) UNIQUE NOT NULL,
-    phonetic NVARCHAR(100) DEFAULT '',  -- Phiên âm của từ
     language NVARCHAR(10) DEFAULT 'en', -- Ngôn ngữ của từ
     created_at DATETIME DEFAULT GETDATE()
 );
+
 CREATE INDEX idx_word ON Words (word);
+
+-- Tạo bảng phiên âm
+CREATE TABLE Phonetic (
+    phonetic_id INT IDENTITY(1,1) PRIMARY KEY,
+    word_id INT NOT NULL,
+    phonetic NVARCHAR(100) NOT NULL, -- Phiên âm của từ
+    FOREIGN KEY (word_id) REFERENCES Words(word_id) ON DELETE CASCADE
+);
+ALTER TABLE Phonetic ADD CONSTRAINT unique_phonetic UNIQUE (word_id, phonetic);
 
 -- Tạo bảng lưu nghĩa của từ
 CREATE TABLE Meanings (
     meaning_id INT IDENTITY(1,1) PRIMARY KEY,
     word_id INT NOT NULL,
-    definition NVARCHAR(MAX) NOT NULL,
+    definition NVARCHAR(1000) NOT NULL,
     FOREIGN KEY (word_id) REFERENCES Words(word_id) ON DELETE CASCADE
 );
-ALTER TABLE Meanings ALTER COLUMN definition NVARCHAR(1000) NOT NULL;
 ALTER TABLE Meanings ADD CONSTRAINT unique_meaning UNIQUE (word_id, definition);
 
-
--- Tạo bảng lưu loại từ
+-- Tạo bảng lưu loại từ (Đổi tên cột "type" thành "word_type" để tránh lỗi)
 CREATE TABLE WordTypes (
     type_id INT IDENTITY(1,1) PRIMARY KEY,
     word_id INT NOT NULL,
-    type NVARCHAR(50) NOT NULL,
+    word_type NVARCHAR(50) NOT NULL,
     FOREIGN KEY (word_id) REFERENCES Words(word_id) ON DELETE CASCADE
 );
-ALTER TABLE WordTypes ADD CONSTRAINT unique_type UNIQUE (word_id, type);
+ALTER TABLE WordTypes ADD CONSTRAINT unique_word_type UNIQUE (word_id, word_type);
 
 -- Tạo bảng ví dụ sử dụng từ
 CREATE TABLE Examples (
     example_id INT IDENTITY(1,1) PRIMARY KEY,
     word_id INT NOT NULL,
-    example NVARCHAR(MAX) NOT NULL,
+    example NVARCHAR(1000) NOT NULL,
     FOREIGN KEY (word_id) REFERENCES Words(word_id) ON DELETE CASCADE
 );
-ALTER TABLE Examples ALTER COLUMN example NVARCHAR(1000) NOT NULL;
 ALTER TABLE Examples ADD CONSTRAINT unique_example UNIQUE (word_id, example);
-
 
 -- Tạo bảng lịch sử tìm kiếm
 CREATE TABLE SearchHistory (
@@ -81,6 +85,7 @@ VALUES ('admin', CONVERT(NVARCHAR(255), HASHBYTES('SHA2_256', 'admin123')), 'adm
 -- Cấp quyền truy cập cho user
 CREATE USER dictionary_user FOR LOGIN dictionary_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Words TO dictionary_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON Phonetic TO dictionary_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Meanings TO dictionary_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON WordTypes TO dictionary_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON Examples TO dictionary_user;
@@ -93,14 +98,19 @@ EXEC sp_configure 'remote access', 1;
 RECONFIGURE;
 
 -- Chèn dữ liệu mẫu vào bảng Words
-INSERT INTO Words (word, phonetic) VALUES
-('apple', '/ˈæp.l̩/'), ('run', '/rʌn/'), ('beautiful', '/ˈbjuː.tɪ.fəl/'), 
-('computer', '/kəmˈpjuː.tər/'), ('book', '/bʊk/'),
-('play', '/pleɪ/'), ('smart', '/smɑːrt/'), ('house', '/haʊs/'),
-('eat', '/iːt/'), ('happy', '/ˈhæp.i/');
+INSERT INTO Words (word) VALUES
+('apple'), ('run'), ('beautiful'), 
+('computer'), ('book'),
+('play'), ('smart'), ('house'),
+('eat'), ('happy');
+
+-- Chèn dữ liệu mẫu vào bảng Phonetic
+INSERT INTO Phonetic (word_id, phonetic) VALUES 
+(1, '/ˈæp.l̩/'),(2, '/rʌn/'),(3, '/ˈbjuː.tɪ.fəl/'),(4, '/kəmˈpjuː.tər/'),
+(5, '/bʊk/'),(6, '/pleɪ/'),(7, '/smɑːrt/'), (8, '/haʊs/'),(9, '/iːt/'),(10, '/ˈhæp.i/');
 
 -- Chèn dữ liệu mẫu vào bảng WordTypes
-INSERT INTO WordTypes (word_id, type) VALUES
+INSERT INTO WordTypes (word_id, word_type) VALUES
 (1, 'noun'), (2, 'verb'), (3, 'adjective'), (4, 'noun'), (5, 'noun'),
 (6, 'verb'), (7, 'adjective'), (8, 'noun'), (9, 'verb'), (10, 'adjective');
 
@@ -130,19 +140,16 @@ INSERT INTO Examples (word_id, example) VALUES
 (9, 'We eat dinner at 7 PM.'),
 (10, 'She was happy to see her friend.');
 
--- Truy vấn tìm kiếm từ điển
+-- Truy vấn tìm kiếm từ điển với phiên âm
 DECLARE @searchWord NVARCHAR(100) = 'apple';  -- Thay 'apple' bằng từ cần tìm
 
 SELECT 
     W.word AS 'Từ',
-    W.phonetic AS 'Phiên âm',
-    STRING_AGG(WT.type, ', ') AS 'Loại từ',
-    STRING_AGG(M.definition, '; ') AS 'Nghĩa',
-    STRING_AGG(E.example, ' | ') AS 'Ví dụ'
+    (SELECT STRING_AGG(P.phonetic, ', ') FROM Phonetic P WHERE P.word_id = W.word_id) AS 'Phiên âm',
+    (SELECT STRING_AGG(WT.word_type, ', ') FROM WordTypes WT WHERE WT.word_id = W.word_id) AS 'Loại từ',
+    (SELECT STRING_AGG(M.definition, '; ') FROM Meanings M WHERE M.word_id = W.word_id) AS 'Nghĩa',
+    (SELECT STRING_AGG(E.example, ' | ') FROM Examples E WHERE E.word_id = W.word_id) AS 'Ví dụ'
 FROM Words W
-LEFT JOIN WordTypes WT ON W.word_id = WT.word_id
-LEFT JOIN Meanings M ON W.word_id = M.word_id
-LEFT JOIN Examples E ON W.word_id = E.word_id
-WHERE W.word = @searchWord
-GROUP BY W.word, W.phonetic;
+WHERE W.word = @searchWord;
+
 
