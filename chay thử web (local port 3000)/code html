@@ -60,28 +60,37 @@
     <script>
         // Hàm tìm kiếm từ trong database
         async function searchWord() {
-            let word = document.getElementById("searchInput").value.trim();
-            if (!word) {
-                alert("Vui lòng nhập từ cần tìm!");
-                return;
-            }
+    let word = document.getElementById("searchInput").value.trim();
+    if (!word) {
+        alert("Vui lòng nhập từ cần tìm!");
+        return;
+    }
 
-            let response = await fetch(`/search?word=${word}`);
-            let data = await response.json();
+    try {
+        let response = await fetch(`/search?word=${encodeURIComponent(word)}`);
+        let data = await response.json();
+        console.log(data); // 📌 Kiểm tra JSON mới
 
-            let resultDiv = document.getElementById("result");
-            if (!data.exists) {
-                resultDiv.innerHTML = `<p style="color:red;">❌ ${data.message}</p>`;
-            } else {
-                resultDiv.innerHTML = `
-                    <h3>Kết quả tìm kiếm:</h3>
-                    <p><b>Từ:</b> ${data.data.word}</p>
-                    <p><b>Loại từ:</b> ${data.data.types.join(", ")}</p>
-                    <p><b>Định nghĩa:</b> ${data.data.meanings.join("; ")}</p>
-                    <p><b>Ví dụ:</b> ${data.data.examples.join("; ")}</p>
-                `;
-            }
+        let resultDiv = document.getElementById("result");
+        if (!data.exists) {
+            resultDiv.innerHTML = `<p style="color:red;">❌ ${data.message}</p>`;
+        } else {
+            resultDiv.innerHTML = `
+                <h3>Kết quả tìm kiếm:</h3>
+                <p><b>Từ:</b> ${data.data.word}</p>
+                <p><b>Phiên âm:</b> ${data.data.phonetic}</p>
+                <p><b>Loại từ:</b> ${data.data.types.join(", ")}</p>
+                <p><b>Định nghĩa:</b> ${data.data.meanings.join("; ")}</p>
+                <p><b>Ví dụ:</b> ${data.data.examples.join("; ")}</p>
+            `;
         }
+    } catch (error) {
+        console.error("Lỗi khi tìm kiếm:", error);
+    }
+}
+
+       
+
 
         // Hàm lấy danh sách gợi ý từ Trie Tree
         async function getSuggestions() {
@@ -126,5 +135,4 @@
 
 </body>
 </html>
-
 
