@@ -165,10 +165,11 @@ function startServer() {
     });
 
     // Lắng nghe trên cổng 3000
-    const PORT = 3000;
-    app.listen(PORT, () => {
-        console.log(`✅ Server chạy tại: http://localhost:${PORT}`);
-    });
+        const PORT = 3000;
+        const HOST = "10.14.30.3"; // Lắng nghe trên tất cả địa chỉ IP trong mạng
+        app.listen(PORT, HOST, () => {
+        console.log(`✅ Server chạy tại: http://${HOST}:${PORT}`);
+});
 }
 
 // Gọi hàm kết nối database
