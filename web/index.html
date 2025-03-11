@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="index.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Từ Điển Trie Tree</title>
+</head>
+<body>
+
+    <h2>Web Từ Điển (Trie Tree) 🚀</h2>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Nhập từ cần tìm..." oninput="getSuggestions()" autocomplete="off">
+        <button onclick="searchWord()">Tìm kiếm</button>
+        <ul id="suggestionsList"></ul>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="options">
+        <div class="option">Phát âm</div>
+        <div class="option" onclick="startGame()">Gaming</div>
+        <div id="gameModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeGameModal()">&times;</span>
+                <h2 style="color: black;">🕹️ Trò chơi đoán từ</h2>
+                <p id="gameQuestion"></p>
+                <input type="text" id="gameAnswer" placeholder="Nhập từ tiếng Anh..." />
+                <button onclick="submitGameAnswer()" style="background: #007BFF; color: white;">Trả lời</button>
+                <button onclick="closeGameModal()" style="background: gray; color: white;">Đóng</button>
+                <div id="gameFeedback"></div> <!-- Thêm chỗ hiển thị kết quả -->
+            </div>
+        </div>
+        
+        <div class="option">Test</div>
+    </div>
+
+    <script>
+        async function searchWord() {
+            let word = document.getElementById("searchInput").value.trim();
+            if (!word) {
+                alert("Vui lòng nhập từ cần tìm!");
+                return;
+            }
+
+            try {
+                let response = await fetch(`/search?word=${encodeURIComponent(word)}`);
+                let data = await response.json();
+
+                let resultDiv = document.getElementById("result");
+                if (!data.exists) {
+                    resultDiv.innerHTML = `<p style="color:red;">❌ ${data.message}</p>`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>Kết quả tìm kiếm:</h3>
+                        <p><b>Từ:</b> ${data.data.word}</p>
+                        <p><b>Phiên âm:</b> ${data.data.phonetic}</p>
+                        <p><b>Loại từ:</b> ${data.data.types.join(", ")}</p>
+                        <p><b>Định nghĩa:</b> ${data.data.meanings.join("; ")}</p>
+                        <p><b>Ví dụ:</b> ${data.data.examples.join("; ")}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error("Lỗi khi tìm kiếm:", error);
+            }
+        }
+
+        async function getSuggestions() {
+            const prefix = document.getElementById("searchInput").value.trim();
+            const suggestionsList = document.getElementById("suggestionsList");
+
+            if (prefix.length === 0) {
+                suggestionsList.style.display = "none";
+                return;
+            }
+
+            const response = await fetch(`/autocomplete?prefix=${prefix}`);
+            const data = await response.json();
+
+            if (data.suggestions.length === 0) {
+                suggestionsList.style.display = "none";
+                return;
+            }
+
+            let listHTML = "";
+            data.suggestions.forEach(word => {
+                listHTML += `<li onclick="selectWord('${word}')">${word}</li>`;
+            });
+
+            suggestionsList.innerHTML = listHTML;
+            suggestionsList.style.display = "block";
+        }
+
+        function selectWord(word) {
+            document.getElementById("searchInput").value = word;
+            document.getElementById("suggestionsList").style.display = "none";
+        }
+        let correctAnswer = ""; // Biến lưu trữ đáp án đúng
+
+// Hiển thị modal trò chơi
+async function startGame() {
+    try {
+        let response = await fetch('/game-word');
+        let data = await response.json();
+
+        if (!data.word || !data.meaning) {
+            alert("Lỗi lấy dữ liệu trò chơi!");
+            return;
+        }
+
+        correctAnswer = data.word.toLowerCase(); // Lưu đáp án
+        document.getElementById("gameQuestion").innerHTML = `🔹 Nghĩa tiếng Việt: <b>${data.meaning}</b>`;
+        document.getElementById("gameModal").style.display = "flex";
+    } catch (error) {
+        console.error("Lỗi khi tải trò chơi:", error);
+    }
+}
+
+// Kiểm tra đáp án
+function submitGameAnswer() {
+    let userAnswer = document.getElementById("gameAnswer").value.trim().toLowerCase();
+    let feedbackDiv = document.getElementById("gameFeedback"); // Thêm div để hiển thị kết quả
+
+    if (userAnswer === correctAnswer) {
+        feedbackDiv.innerHTML = `<p style="color: green;">✅ Chính xác! Bạn giỏi quá!</p>`;
+    } else {
+        feedbackDiv.innerHTML = `<p style="color: red;">❌ Sai rồi! Đáp án đúng là: <b>${correctAnswer}</b></p>`;
+    }
+}
+
+// Đóng modal
+function closeGameModal() {
+    document.getElementById("gameModal").style.display = "none";
+}
+
+        document.querySelector(".option:nth-child(2)").addEventListener("click", startGame);
+
+        document.addEventListener("click", function(event) {
+            if (!event.target.matches("#searchInput") && !event.target.matches("#suggestionsList li")) {
+                document.getElementById("suggestionsList").style.display = "none";
+            }
+        });
+    </script>
+
+</body>
+</html>
+
+
+
+
