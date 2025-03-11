@@ -8,7 +8,7 @@
 </head>
 <body>
 
-    <h2>Web Từ Điển (Trie Tree) 🚀</h2>
+    <h2>🚀  Từ điển Anh - Việt  🚀</h2>
 
     <div class="search-container">
         <input type="text" id="searchInput" placeholder="Nhập từ cần tìm..." oninput="getSuggestions()" autocomplete="off">
@@ -30,6 +30,7 @@
                 <button onclick="submitGameAnswer()" style="background: #007BFF; color: white;">Trả lời</button>
                 <button onclick="closeGameModal()" style="background: gray; color: white;">Đóng</button>
                 <div id="gameFeedback"></div> <!-- Thêm chỗ hiển thị kết quả -->
+                <button id="nextWordBtn" onclick="nextWord()" style="display: none; background: green; color: white;">Tiếp tục</button>
             </div>
         </div>
         
@@ -109,30 +110,73 @@ async function startGame() {
             return;
         }
 
-        correctAnswer = data.word.toLowerCase(); // Lưu đáp án
+        correctAnswer = data.word.toLowerCase(); // Cập nhật đáp án mới
         document.getElementById("gameQuestion").innerHTML = `🔹 Nghĩa tiếng Việt: <b>${data.meaning}</b>`;
-        document.getElementById("gameModal").style.display = "flex";
+        document.getElementById("gameAnswer").value = ""; // Xóa câu trả lời cũ
+        document.getElementById("gameFeedback").innerHTML = ""; // Xóa phản hồi cũ
+        document.getElementById("nextWordBtn").style.display = "none"; // Ẩn nút tiếp tục ban đầu
+
+        document.getElementById("gameModal").style.display = "flex"; // Hiển thị modal trò chơi
     } catch (error) {
         console.error("Lỗi khi tải trò chơi:", error);
     }
 }
 
+
 // Kiểm tra đáp án
 function submitGameAnswer() {
-    let userAnswer = document.getElementById("gameAnswer").value.trim().toLowerCase();
-    let feedbackDiv = document.getElementById("gameFeedback"); // Thêm div để hiển thị kết quả
+    const userAnswer = document.getElementById("gameAnswer").value.trim().toLowerCase();
+    const feedback = document.getElementById("gameFeedback");
+    const nextWordBtn = document.getElementById("nextWordBtn");
 
     if (userAnswer === correctAnswer) {
-        feedbackDiv.innerHTML = `<p style="color: green;">✅ Chính xác! Bạn giỏi quá!</p>`;
+        feedback.innerHTML = "<span style='color: green;'>✅ Chính xác!</span>";
     } else {
-        feedbackDiv.innerHTML = `<p style="color: red;">❌ Sai rồi! Đáp án đúng là: <b>${correctAnswer}</b></p>`;
+        feedback.innerHTML = `<span style='color: red;'>❌ Sai! Đáp án đúng là: <b>${correctAnswer}</b></span>`;
+    }
+
+    nextWordBtn.style.display = "block"; // Luôn hiển thị nút "Tiếp tục"
+}
+
+
+
+
+// Hàm nextword để gọi API và lấy từ mới
+async function nextWord() {
+    try {
+        let response = await fetch('/game-word');
+        let data = await response.json();
+
+        if (!data.word || !data.meaning) {
+            alert("Lỗi lấy dữ liệu trò chơi!");
+            return;
+        }
+
+        correctAnswer = data.word.toLowerCase(); // Cập nhật đáp án mới
+        document.getElementById("gameQuestion").innerHTML = `🔹 Nghĩa tiếng Việt: <b>${data.meaning}</b>`;
+        document.getElementById("gameAnswer").value = ""; // Xóa câu trả lời cũ
+        document.getElementById("gameFeedback").innerHTML = ""; // Xóa phản hồi cũ
+        document.getElementById("nextWordBtn").style.display = "none"; // Ẩn nút tiếp tục cho lần sau
+    } catch (error) {
+        console.error("Lỗi khi tải từ mới:", error);
     }
 }
+
+// Thêm sự kiện cho nút "Tiếp tục"
+document.getElementById("nextWordBtn").addEventListener("click", nextWord);
+
+// Lắng nghe sự kiện khi người chơi nhấn nút "Tiếp tục"
+document.getElementById('nextButton').addEventListener('click', nextword);
+
 
 // Đóng modal
 function closeGameModal() {
     document.getElementById("gameModal").style.display = "none";
+    document.getElementById("gameAnswer").value = ""; // Xóa nội dung nhập
+    document.getElementById("gameFeedback").innerHTML = ""; // Xóa phản hồi
+    document.getElementById("nextWordBtn").style.display = "none"; // Ẩn nút tiếp tục
 }
+
 
         document.querySelector(".option:nth-child(2)").addEventListener("click", startGame);
 
@@ -145,7 +189,5 @@ function closeGameModal() {
 
 </body>
 </html>
-
-
 
 
