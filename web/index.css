@@ -191,7 +191,11 @@ button:hover {
     color: black !important;
     font-weight: normal; /* Nếu bạn muốn bỏ đậm */
 }
-
+#nextWordBtn {
+    display: block;
+    margin: 10px auto; /* Căn giữa ngang */
+    text-align: center;
+}
 
 
 
