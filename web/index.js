@@ -156,26 +156,22 @@ function startServer() {
         }
     });
     // API lấy một từ ngẫu nhiên từ SQL
-app.get('/game-word', async (req, res) => {
-    try {
-        await sql.connect(config);
-        const result = await sql.query(`
-            SELECT TOP 1 W.word AS word, 
-                (SELECT STRING_AGG(M.definition, '; ') FROM Meanings M WHERE M.word_id = W.word_id) AS meaning
-            FROM Words W
-            ORDER BY NEWID();
-        `);
+    // Hàm lấy ngẫu nhiên một từ từ Trie Tree
+function getRandomWordFromTrie() {
+    let words = [];
+    trie._dfs(trie.root, "", words);
+    if (words.length === 0) return null;
+    return words[Math.floor(Math.random() * words.length)];
+}
 
-        if (result.recordset.length > 0) {
-            res.json(result.recordset[0]);
-        } else {
-            res.json({ error: "Không tìm thấy từ nào trong cơ sở dữ liệu!" });
-        }
-    } catch (err) {
-        console.error("Lỗi SQL:", err);
-        res.status(500).json({ error: "Lỗi server!" });
-    }
+// API lấy một từ ngẫu nhiên từ Trie
+app.get('/game-word', (req, res) => {
+    const word = getRandomWordFromTrie();
+    if (!word) return res.json({ error: "Không tìm thấy từ nào trong Trie!" });
+    
+    res.json({ word, meaning: "Chưa có API lấy nghĩa từ Trie" }); // Cần sửa để lấy nghĩa từ DB
 });
+
 
     
     // API gợi ý từ dựa trên tiền tố
@@ -187,7 +183,7 @@ app.get('/game-word', async (req, res) => {
     });
     // Lắng nghe trên cổng 3000
     const PORT = 3000;
-const HOST = "10.14.30.3"; // Lắng nghe trên tất cả địa chỉ IP trong mạng
+const HOST = "10.0.125.180"; // Lắng nghe trên tất cả địa chỉ IP trong mạng
 app.listen(PORT, HOST, () => {
     console.log(`✅ Server chạy tại: http://${HOST}:${PORT}`);
 });
