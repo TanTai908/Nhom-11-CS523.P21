@@ -156,6 +156,29 @@ function startServer() {
         }
     });
     // API lấy một từ ngẫu nhiên từ SQL
+      app.get('/game-word', async (req, res) => {
+        try {
+            const result = await sql.query`
+                SELECT TOP 1 
+                    W.word, 
+                    COALESCE((SELECT STRING_AGG(M.definition, '; ') 
+                              FROM Meanings M 
+                              WHERE M.word_id = W.word_id), 'Không có nghĩa') AS meanings
+                FROM Words Wv
+                ORDER BY NEWID();`;  // Lấy ngẫu nhiên một từ
+    
+            if (result.recordset.length === 0) {
+                return res.json({ error: "Không tìm thấy từ nào trong database!" });
+            }
+    
+            const { word, meanings } = result.recordset[0];
+    
+            res.json({ word, meaning: meanings });
+        } catch (err) {
+            console.error("❌ Lỗi khi lấy từ ngẫu nhiên từ SQL:", err);
+            res.status(500).json({ error: "Lỗi khi lấy từ từ SQL", details: err.message });
+        }
+    });
     // Hàm lấy ngẫu nhiên một từ từ Trie Tree
 function getRandomWordFromTrie() {
     let words = [];
