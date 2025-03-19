@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="index.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Từ Điển Trie Tree</title>
+</head>
+<body>
+    <h2>🚀 Từ điển Anh - Việt 🚀</h2>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Nhập từ cần tìm..." oninput="getSuggestions()" autocomplete="off">
+        <button onclick="searchWord()">Tìm kiếm</button>
+        <ul id="suggestionsList"></ul>
+    </div>
+
+    <div id="result"></div>
+
+    <div class="options">
+        <div class="option">Phát âm</div>
+        <div class="option" onclick="startGuessGame()">Trò chơi đoán từ</div>
+        <div class="option" onclick="startMatchGame()">Trò chơi ghép từ</div>
+    </div>
+
+    <!-- Modal trò chơi đoán từ -->
+    <div id="guessGameModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('guessGameModal')">&times;</span>
+            <h2 style="color: black;">🕹️ Trò chơi đoán từ</h2>
+            <p id="guessGameQuestion"></p>
+            <input type="text" id="guessGameAnswer" placeholder="Nhập từ tiếng Anh...">
+            <button onclick="submitGuessAnswer()">Trả lời</button>
+            <button onclick="closeModal('guessGameModal')">Đóng</button>
+            <div id="guessGameFeedback"></div>
+            <button id="guessNextBtn" onclick="startGuessGame()" style="display: none;">Tiếp tục</button>
+        </div>
+    </div>
+
+    <!-- Modal trò chơi ghép từ -->
+    <div id="matchGameModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('matchGameModal')">&times;</span>
+            <h2 style="color: black;">🕹️ Trò chơi ghép từ</h2>
+            <p id="matchGameQuestion"></p>
+            <div id="lettersContainer"></div>
+            <div id="answerContainer"></div>
+            <button onclick="submitMatchAnswer()">Trả lời</button>
+            <button onclick="closeModal('matchGameModal')">Đóng</button>
+            <div id="matchGameFeedback"></div>
+            <button id="matchNextBtn" onclick="startMatchGame()" style="display: none;">Tiếp tục</button>
+        </div>
+    </div>
+
+    <script>
+        let correctGuessAnswer = "";
+        let correctMatchAnswer = "";
+
+        async function searchWord() {
+            let word = document.getElementById("searchInput").value.trim();
+            if (!word) {
+                alert("Vui lòng nhập từ cần tìm!");
+                return;
+            }
+            let response = await fetch(`/search?word=${encodeURIComponent(word)}`);
+            let data = await response.json();
+            let resultDiv = document.getElementById("result");
+            if (!data.exists) {
+                resultDiv.innerHTML = `<p style="color:red;">❌ ${data.message}</p>`;
+            } else {
+                resultDiv.innerHTML = `
+                    <h3>Kết quả tìm kiếm:</h3>
+                    <p><b>Từ:</b> ${data.data.word}</p>
+                    <p><b>Phiên âm:</b> ${data.data.phonetic}</p>
+                    <p><b>Loại từ:</b> ${data.data.types.join(", ")}</p>
+                    <p><b>Định nghĩa:</b> ${data.data.meanings.join("; ")}</p>
+                    <p><b>Ví dụ:</b> ${data.data.examples.join("; ")}</p>
+                `;
+            }
+        }
+        
+
+        async function startGuessGame() {
+            let response = await fetch('/game-word');
+            let data = await response.json();
+            correctGuessAnswer = data.word.toLowerCase();
+            document.getElementById("guessGameQuestion").innerHTML = `🔹 Nghĩa tiếng Việt: <b>${data.meaning}</b>`;
+            document.getElementById("guessGameModal").style.display = "flex";
+        }
+
+        function submitGuessAnswer() {
+            let userAnswer = document.getElementById("guessGameAnswer").value.trim().toLowerCase();
+            let feedback = document.getElementById("guessGameFeedback");
+            feedback.innerHTML = userAnswer === correctGuessAnswer ? "<span style='color: green;'>✅ Chính xác!</span>" : `<span style='color: red;'>❌ Sai! Đáp án đúng là: <b>${correctGuessAnswer}</b></span>`;
+            document.getElementById("guessNextBtn").style.display = "block";
+        }
+
+        async function startMatchGame() {
+            let response = await fetch('/game-word');
+            let data = await response.json();
+            correctMatchAnswer = data.word.toLowerCase();
+            document.getElementById("matchGameQuestion").innerHTML = `🔹 Nghĩa tiếng Việt: <b>${data.meaning}</b>`;
+            document.getElementById("lettersContainer").innerHTML = shuffle(correctMatchAnswer).split('').map(letter => `<button onclick="selectLetter(this)">${letter}</button>`).join('');
+            document.getElementById("answerContainer").innerHTML = "";
+            document.getElementById("matchGameModal").style.display = "flex";
+        }
+
+        async function getSuggestions() {
+    let input = document.getElementById("searchInput").value.trim();
+    let suggestionsList = document.getElementById("suggestionsList");
+
+    if (input.length < 1) {
+        suggestionsList.innerHTML = "";
+        suggestionsList.style.display = "none"; // Ẩn danh sách khi không nhập đủ ký tự
+        return;
+    }
+
+    try {
+        let response = await fetch(`/autocomplete?prefix=${encodeURIComponent(input)}`);
+        let data = await response.json();
+        
+        if (data.suggestions.length) {
+            suggestionsList.innerHTML = data.suggestions
+                .map(word => `<li onclick="selectSuggestion('${word}')">${word}</li>`)
+                .join("");
+            suggestionsList.style.display = "block"; // Hiện danh sách
+        } else {
+            suggestionsList.innerHTML = "<li>(Không có gợi ý)</li>";
+            suggestionsList.style.display = "block";
+        }
+    } catch (error) {
+        console.error("❌ Lỗi gọi API autocomplete:", error);
+    }
+}
+
+function selectSuggestion(word) {
+    document.getElementById("searchInput").value = word;
+    document.getElementById("suggestionsList").innerHTML = "";
+    document.getElementById("suggestionsList").style.display = "none"; // Ẩn danh sách sau khi chọn
+}
+
+
+       
+
+ 
+
+
+        function shuffle(word) {
+            return word.split('').sort(() => Math.random() - 0.5).join('');
+        }
+
+        function selectLetter(button) {
+            document.getElementById("answerContainer").innerHTML += button.innerHTML;
+            button.disabled = true;
+        }
+
+        function submitMatchAnswer() {
+            let userAnswer = document.getElementById("answerContainer").innerText.toLowerCase();
+            let feedback = document.getElementById("matchGameFeedback");
+            feedback.innerHTML = userAnswer === correctMatchAnswer ? "<span style='color: green;'>✅ Chính xác!</span>" : `<span style='color: red;'>❌ Sai! Đáp án đúng là: <b>${correctMatchAnswer}</b></span>`;
+            document.getElementById("matchNextBtn").style.display = "block";
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
+        }
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
