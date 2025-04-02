@@ -1,4 +1,4 @@
-# TRIE TREE
+
 ![Ảnh mô tả Trie Tree](https://github.com/user-attachments/assets/483601f2-24bd-468a-a7b5-04782aa26c5a)
 
 # Môn học 
@@ -11,6 +11,7 @@
 |------------|--------------|
 | Hứa Mạnh Tân | 23521396 | 
 | Nguyễn Tấn Tài | 23521376 | 
+# Chủ đề thuyết trình : Trie tree và ứng dụng 
 
 
 
