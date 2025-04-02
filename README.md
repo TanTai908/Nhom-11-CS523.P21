@@ -3,8 +3,8 @@
 
 # Môn học 
  * Cấu trúc dữ liệu và giải thuật nâng cao
- * Mã môn học CS523
- * Mã lớp CS523.P21
+ * Mã môn học : CS523
+ * Mã lớp : CS523.P21
 ## Giảng viên hướng dẫn : Nguyễn Thanh Sơn 
 ## Thành viên nhóm 11
 | Thành viên | Mã sinh viên | 
