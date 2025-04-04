@@ -1,0 +1,25 @@
+h1{
+    text-align: center;
+    color: darkgreen;
+}
+
+h2{
+    text-align: center;
+    color: darkgreen;
+}
+
+div{
+    text-align: center;
+}
+button{
+    color: yellow;
+    font-size: 0.5cm;
+    background-color: #006633;
+    border-radius: 6px;
+    margin: 10px;
+    cursor: pointer;
+    transition: background-color 0.25s;
+}
+button:hover{
+    background-color: #01b35a;
+}
